@@ -1,0 +1,57 @@
+- name: Chatbot module deployment
+  hosts: chatbot
+  vars:
+    MAGE_ROOT: /mnt/remote/chatbot/public_html
+    MAGE_GIT: /mnt/remote/chatbot/public_html/app/code/Magenest/FbChatbot
+    ansible_python_interpreter: /usr/bin/python3
+  tasks:
+   - name: Enable Maintenance mode
+     shell: php bin/magento maintenance:enable
+     args:
+      chdir: "{{ MAGE_ROOT }}"
+
+   - name: checkout to develop branch
+     shell: git checkout develop
+     args:
+      chdir: "{{ MAGE_GIT }}"
+      
+   - name: Fetch new code from git repository
+     shell: git fetch
+     args:
+      chdir: "{{ MAGE_GIT }}"
+
+   - name: Merge code to develop branch
+     shell: git merge origin/develop
+     args:
+      chdir: "{{ MAGE_GIT }}"
+
+   - name: Update the database schema and data
+     shell: php bin/magento setup:upgrade
+     args:
+      chdir: "{{ MAGE_ROOT }}"
+
+   - name: Switch to production mode
+     shell: php bin/magento deploy:mode:set production -s
+     args:
+      chdir: "{{ MAGE_ROOT }}"
+
+   - name: Compile the code
+     shell: php bin/magento setup:di:compile
+     args:
+      chdir: "{{ MAGE_ROOT }}"
+
+   - name: Deploy static content
+     shell: php bin/magento setup:static-content:deploy -j4 en_US
+     args:
+      chdir: "{{ MAGE_ROOT }}"
+ 
+   - name: Clean the cache
+     shell: php bin/magento cache:clean
+     args:
+      chdir: "{{ MAGE_ROOT }}"
+    
+   - name: Exit maintenance mode
+     shell: php bin/magento maintenance:disable
+     args:
+      chdir: "{{ MAGE_ROOT }}"
+
